@@ -522,8 +522,54 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
     def is_doorbell(self) -> bool:
         """ Returns true if this is a doorbell (VTO) """
         m = self.model.upper()
-        return m.startswith("VTO") or m.startswith("DH-VTO") or m.startswith("DHI") or self.is_amcrest_doorbell()
+        return m.startswith("VTO") or m.startswith("DH-VTO") or self.is_amcrest_doorbell()
+    def is_nvr(self) -> bool:
+        return m.startswith("DHI-NVR")
+    def resolve_ips(self) -> str:
+        """Loop through all cameras in discovery api to determine IP of initial camera
+        Set first camera in discovery feed as the 'smallest' final IP octet"""
+        ip_with_smallest_final_octet = self.nvr_devices_discovery[0].IPv4Address.IPAddress.split(".")
+        """Set up IP index (dict)(IP_Final_Octet->NVR_Discovery_Index) """
+        self._ip_index[ip_with_smallest_final_octet[3]] = 0
+        for i in range (1,len(self._nvr_devices_discovery)):
+            """Get IP address of current camera and split the octets"""
+            ip_octets = self.nvr_devices_discovery[i].IPv4Address.IPAddress.split(".")
+            """Keep adding to IP index"""
+            self._ip_index[ip_octets[3]] = i
+            """Check the current camera IP to see if it is the smallest"""
+            if(ip_octets[3] < ip_with_smallest_final_octet[3]):
+                ip_with_smallest_final_octet = ip_octets
+        return ip_with_smallest_final_octet
+    def get_index_of_device_in_discovery(self) -> int:
+        """
+        Dahua confirmed, proceed to extract model number from dodgy discovery process. We can then use the channel ID
+        to increment on the smallest IP. Since it would be stupid to have two loops, we loop through the array of 
+        encode settings, keeping two incrementing variables: the 'real' count and also the 'Current IP final octet'
+        count. 
+        """
+        num_dev_connected_to_dahua = 0
+        for i in range(0,self._channel):
+            if (self._nvr_devices_encodesettings.table.Encode[i].MainFormat[0].Video.Pack=="DHAV"):
+                num_dev_connected_to_dahua+=1
+        """Now to add to the final octet in the IP with the smallest final octet"""
+        current_dev_final_octet = self._ip_with_smallest_final_octet[3] + num_dev_connected_to_dahua
+        """Find actual index"""
+        return self._ip_index[current_dev_final_octet]
 
+    def get_current_device_sn(self) -> str:
+        return self.nvr_devices_discovery[self._current_dev_final_octet].SerialNo
+    def get_current_device_model_number(self) -> str:
+        return self.nvr_devices_discovery[self._current_dev_final_octet].DeviceType
+    def is_connected_to_nvr_switch(self) -> bool:
+        """
+        Find out whether the device is directly connected to NVR switch (i.e. does device have a video pack assigned?)
+        This is to help in future, to determine the serial numbers of connected NVR devices
+        """
+        if ("Pack" in self._nvr_devices_encodesettings.table.Encode[self._channel].MainFormat[0].Video):
+            if (self._nvr_devices_encodesettings.table.Encode[self._channel].MainFormat[0].Video.Pack=="DHAV"):
+                """Dahua confirmed"""
+            return true
+        return false
     def is_amcrest_doorbell(self) -> bool:
         """ Returns true if this is an Amcrest doorbell """
         return self.model.upper().startswith("AD")
@@ -587,7 +633,9 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         """ returns the device serial number. This is unique per device """
         if self._channel > 0:
             # We need a unique identifier. For NVRs we get back the same serial, so add the channel to the end of the sn
-            return "{0}_{1}".format(self._serial_number, self._channel)
+             # return "{0}_{1}".format(self._serial_number, self._channel)
+             #TODO: Integrate device discovery API into here
+             print("Stupid debugger")
         return self._serial_number
 
     def get_event_list(self) -> list:
