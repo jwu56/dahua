@@ -525,7 +525,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         return m.startswith("VTO") or m.startswith("DH-VTO") or self.is_amcrest_doorbell()
     def is_nvr(self) -> bool:
         return m.startswith("DHI-NVR")
-    def resolve_ips(self) -> str:
+    def resolve_ips(self):
         """Loop through all cameras in discovery api to determine IP of initial camera
         Set first camera in discovery feed as the 'smallest' final IP octet"""
         ip_with_smallest_final_octet = self.nvr_devices_discovery[0].IPv4Address.IPAddress.split(".")
@@ -539,7 +539,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
             """Check the current camera IP to see if it is the smallest"""
             if(ip_octets[3] < ip_with_smallest_final_octet[3]):
                 ip_with_smallest_final_octet = ip_octets
-        return ip_with_smallest_final_octet
     def get_index_of_device_in_discovery(self) -> int:
         """
         Dahua confirmed, proceed to extract model number from dodgy discovery process. We can then use the channel ID
@@ -551,9 +550,9 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         for i in range(0,self._channel):
             if (self._nvr_devices_encodesettings.table.Encode[i].MainFormat[0].Video.Pack=="DHAV"):
                 num_dev_connected_to_dahua+=1
-        """Now to add to the final octet in the IP with the smallest final octet"""
-        current_dev_final_octet = self._ip_with_smallest_final_octet[3] + num_dev_connected_to_dahua
-        """Find actual index"""
+            """Now to add to the final octet in the IP with the smallest final octet"""
+            current_dev_final_octet = self._ip_with_smallest_final_octet[3] + num_dev_connected_to_dahua
+            """Find actual index"""
         return self._ip_index[current_dev_final_octet]
 
     def get_current_device_sn(self) -> str:
@@ -568,8 +567,9 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         if ("Pack" in self._nvr_devices_encodesettings.table.Encode[self._channel].MainFormat[0].Video):
             if (self._nvr_devices_encodesettings.table.Encode[self._channel].MainFormat[0].Video.Pack=="DHAV"):
                 """Dahua confirmed"""
-            return true
-        return false
+                return true
+            else:
+                return false
     def is_amcrest_doorbell(self) -> bool:
         """ Returns true if this is an Amcrest doorbell """
         return self.model.upper().startswith("AD")

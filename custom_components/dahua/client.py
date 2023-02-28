@@ -619,7 +619,11 @@ class DahuaClient:
         url = "/cgi-bin/configManager.cgi?action=setConfig&MotionDetect[{0}].Enable={1}".format(channel,
                                                                                                 str(enabled).lower())
         return await self.get(url)
-
+    async def update_device_discovery(self):
+        pass
+    async def get_encode_settings(self):
+        pass
+        
     async def stream_events(self, on_receive, events: list, channel: int):
         """
         enable_motion_detection will either enable or disable motion detection on the camera depending on the supplied value
