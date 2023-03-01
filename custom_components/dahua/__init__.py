@@ -543,6 +543,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         m = self.model.upper()
         return m.startswith("VTO") or m.startswith("DH-VTO") or self.is_amcrest_doorbell()
     def is_nvr(self) -> bool:
+        m = self.model.upper()
         return m.startswith("DHI-NVR")
     def resolve_ips(self) -> str:
         """Loop through all cameras in discovery api to determine IP of initial camera. The DHCP
