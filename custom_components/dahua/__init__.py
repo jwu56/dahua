@@ -201,6 +201,19 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 sys_info = await self.client.async_get_system_info()
                 version = await self.client.get_software_version()
                 device_type = data.get("deviceType", None)
+                # Lorex NVRs return deviceType=31, but the model is in the updateSerial
+                # /cgi-bin/magicBox.cgi?action=getSystemInfo"
+                # deviceType=31
+                # processor=ST7108
+                # serialNumber=ND0219110NNNNN
+                # updateSerial=DHI-NVR4108HS-8P-4KS2
+                if device_type in ["IP Camera", "31"] or device_type is None:
+                    # Some firmwares put the device type in the "updateSerial" field. Weird.
+                    device_type = data.get("updateSerial", None)
+                    if device_type is None:
+                        # If it's still none, then call the device type API
+                        dt = await self.client.get_device_type()
+                        device_type = dt.get("type")
                 data["model"] = device_type
                 self.model = device_type
                 data.update(machine_name)
@@ -211,7 +224,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.info("Device is an NVR=%s", is_nvr)
 
                 #If NVR, invoke alternative procedure
-                if(is_nvr):
+                if(is_nvr):                    
                     self.nvr_devices_discovery = await self.client.get_device_discovery()
                     self._nvr_devices_encodesettings = await self.client.get_encode_settings()
                     self.ip_with_smallest_final_octet = resolve_ips()
@@ -224,19 +237,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                     machine_name = self.machine_name
                     data.update(machine_name)
                 else:
-                    # Lorex NVRs return deviceType=31, but the model is in the updateSerial
-                    # /cgi-bin/magicBox.cgi?action=getSystemInfo"
-                    # deviceType=31
-                    # processor=ST7108
-                    # serialNumber=ND0219110NNNNN
-                    # updateSerial=DHI-NVR4108HS-8P-4KS2
-                    if device_type in ["IP Camera", "31"] or device_type is None:
-                        # Some firmwares put the device type in the "updateSerial" field. Weird.
-                        device_type = data.get("updateSerial", None)
-                        if device_type is None:
-                            # If it's still none, then call the device type API
-                            dt = await self.client.get_device_type()
-                            device_type = dt.get("type")
                     data["model"] = device_type
                     self.model = device_type
                     self.machine_name = data.get("table.General.MachineName")
