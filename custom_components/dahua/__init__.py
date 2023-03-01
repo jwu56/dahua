@@ -204,7 +204,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 data["model"] = device_type
                 self.model = device_type
                 data.update(machine_name)
-                data.update(model)
                 data.update(sys_info)
                 data.update(version)
                 #Check if NVR
@@ -223,7 +222,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                     self.machine_name = self.get_current_device_machine_name()
                     self._serial_number = self.get_current_device_sn()
                     machine_name = self.machine_name
-                    data.update(model)
                     data.update(machine_name)
                 else:
                     # Lorex NVRs return deviceType=31, but the model is in the updateSerial
@@ -240,7 +238,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                             dt = await self.client.get_device_type()
                             device_type = dt.get("type")
                     data["model"] = device_type
-                    data.update(model)
                     self.model = device_type
                     self.machine_name = data.get("table.General.MachineName")
                     self._serial_number = data.get("serialNumber")
