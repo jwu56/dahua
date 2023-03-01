@@ -200,6 +200,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 machine_name = await self.client.async_get_machine_name()
                 sys_info = await self.client.async_get_system_info()
                 version = await self.client.get_software_version()
+                device_type = data.get("deviceType", None)
                 data["model"] = device_type
                 self.model = device_type
                 data.update(machine_name)
@@ -218,14 +219,13 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                     self._current_device_discovery_id = get_index_of_device_in_discovery()
                     self.get_index_of_device_in_discovery()
                     self.model = self.get_current_device_model_number()
-                    datap["model"] = self.model
+                    data["model"] = self.model
                     self.machine_name = self.get_current_device_machine_name()
                     self._serial_number = self.get_current_device_sn()
                     machine_name = self.machine_name
                     data.update(model)
                     data.update(machine_name)
                 else:
-                    device_type = data.get("deviceType", None)
                     # Lorex NVRs return deviceType=31, but the model is in the updateSerial
                     # /cgi-bin/magicBox.cgi?action=getSystemInfo"
                     # deviceType=31
