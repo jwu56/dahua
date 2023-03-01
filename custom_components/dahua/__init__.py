@@ -177,39 +177,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 self._session = None
             except Exception as e:
                 _LOGGER.exception("serverConnect - failed to close session")
-    def resolve_ips(self) -> str:
-        """Loop through all cameras in discovery api to determine IP of initial camera. The DHCP
-        Server in the NVR assigns IPs in sequence - usually 1st channel/device is smallest, 
-        2nd channel/device is next smallest etc. etc.
-        
-        Go through and map which NVR discovery entry corresponds with which channel"""
-        ip_with_smallest_final_octet = self.nvr_devices_discovery[0].IPv4Address.IPAddress.split(".")
-        """Set up IP index (dict)(IP_Final_Octet->NVR_Discovery_Index) """
-        self._ip_index[ip_with_smallest_final_octet[3]] = 0
-        for i in range (1,len(self._nvr_devices_discovery)):
-            """Get IP address of current camera and split the octets"""
-            ip_octets = self.nvr_devices_discovery[i].IPv4Address.IPAddress.split(".")
-            """Keep adding to IP index"""
-            self._ip_index[ip_octets[3]] = i
-            """Check the current camera IP to see if it is the smallest"""
-            if(ip_octets[3] < ip_with_smallest_final_octet[3]):
-                ip_with_smallest_final_octet = ip_octets  
-        return ip_with_smallest_final_octet
-    def get_index_of_device_in_discovery(self) -> int:
-        """
-        Dahua confirmed, proceed to extract model number from dodgy discovery process. We can then use the channel ID
-        to increment on the smallest IP. Since it would be stupid to have two loops, we loop through the array of 
-        encode settings, keeping two incrementing variables: the 'real' count and also the 'Current IP final octet'
-        count. 
-        """
-        num_dev_connected_to_dahua = 0
-        for i in range(0,self._channel):
-            if (self._nvr_devices_encodesettings.table.Encode[i].MainFormat[0].Video.Pack=="DHAV"):
-                num_dev_connected_to_dahua+=1
-            """Now to add to the final octet in the IP with the smallest final octet"""
-            current_dev_final_octet = self._ip_with_smallest_final_octet[3] + num_dev_connected_to_dahua
-            """Find actual index"""
-        return self._ip_index[current_dev_final_octet]
 
     async def _async_update_data(self):
         """Reload the camera information"""
@@ -260,9 +227,8 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 if(is_nvr):                    
                     self.nvr_devices_discovery = await self.client.get_device_discovery()
                     self._nvr_devices_encodesettings = await self.client.get_encode_settings()
-                    self.ip_with_smallest_final_octet = resolve_ips()
-                    self._current_device_discovery_id = get_index_of_device_in_discovery()
-                    self.get_index_of_device_in_discovery()
+                    self.ip_with_smallest_final_octet = self.resolve_ips()
+                    self._current_device_discovery_id = self.get_index_of_device_in_discovery()
                     self.model = self.get_current_device_model_number()
                     data["model"] = self.model
                     self.machine_name = self.get_current_device_machine_name()
@@ -749,6 +715,39 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         ways to call a VTO device and the VTO client will handle that. For example, to hang up a call
         """
         return self.dahua_vto_event_thread.vto_client
+    def resolve_ips(self) -> str:
+        """Loop through all cameras in discovery api to determine IP of initial camera. The DHCP
+        Server in the NVR assigns IPs in sequence - usually 1st channel/device is smallest, 
+        2nd channel/device is next smallest etc. etc.
+        
+        Go through and map which NVR discovery entry corresponds with which channel"""
+        ip_with_smallest_final_octet = self.nvr_devices_discovery[0].IPv4Address.IPAddress.split(".")
+        """Set up IP index (dict)(IP_Final_Octet->NVR_Discovery_Index) """
+        self._ip_index[ip_with_smallest_final_octet[3]] = 0
+        for i in range (1,len(self._nvr_devices_discovery)):
+            """Get IP address of current camera and split the octets"""
+            ip_octets = self.nvr_devices_discovery[i].IPv4Address.IPAddress.split(".")
+            """Keep adding to IP index"""
+            self._ip_index[ip_octets[3]] = i
+            """Check the current camera IP to see if it is the smallest"""
+            if(ip_octets[3] < ip_with_smallest_final_octet[3]):
+                ip_with_smallest_final_octet = ip_octets  
+        return ip_with_smallest_final_octet
+    def get_index_of_device_in_discovery(self) -> int:
+        """
+        Dahua confirmed, proceed to extract model number from dodgy discovery process. We can then use the channel ID
+        to increment on the smallest IP. Since it would be stupid to have two loops, we loop through the array of 
+        encode settings, keeping two incrementing variables: the 'real' count and also the 'Current IP final octet'
+        count. 
+        """
+        num_dev_connected_to_dahua = 0
+        for i in range(0,self._channel):
+            if (self._nvr_devices_encodesettings.table.Encode[i].MainFormat[0].Video.Pack=="DHAV"):
+                num_dev_connected_to_dahua+=1
+            """Now to add to the final octet in the IP with the smallest final octet"""
+            current_dev_final_octet = self._ip_with_smallest_final_octet[3] + num_dev_connected_to_dahua
+            """Find actual index"""
+        return self._ip_index[current_dev_final_octet]
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
