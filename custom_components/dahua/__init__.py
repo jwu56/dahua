@@ -541,7 +541,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         return m.startswith("VTO") or m.startswith("DH-VTO") or self.is_amcrest_doorbell()
     def is_nvr(self) -> bool:
         return m.startswith("DHI-NVR")
-    def resolve_ips(self) -> string:
+    def resolve_ips(self) -> str:
         """Loop through all cameras in discovery api to determine IP of initial camera. The DHCP
         Server in the NVR assigns IPs in sequence - usually 1st channel/device is smallest, 
         2nd channel/device is next smallest etc. etc.
