@@ -619,10 +619,14 @@ class DahuaClient:
         url = "/cgi-bin/configManager.cgi?action=setConfig&MotionDetect[{0}].Enable={1}".format(channel,
                                                                                                 str(enabled).lower())
         return await self.get(url)
-    async def update_device_discovery(self):
-        pass
+
+    async def get_device_discovery(self):
+        url = "/cgi-bin/deviceDiscovery.cgi?action=attach&DeviceClass=IPC"
+        return await self.get(url) 
+
     async def get_encode_settings(self):
-        pass
+        url = "/cgi-bin/configManager.cgi?action=getConfig&name=Encode"
+        return await self.get(url)
         
     async def stream_events(self, on_receive, events: list, channel: int):
         """

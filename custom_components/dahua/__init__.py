@@ -203,25 +203,41 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 data.update(machine_name)
                 data.update(sys_info)
                 data.update(version)
+                #Check if NVR
+                is_nvr = self.is_nvr()
+                _LOGGER.info("Device is an NVR=%s", is_nvr)
 
-                device_type = data.get("deviceType", None)
-                # Lorex NVRs return deviceType=31, but the model is in the updateSerial
-                # /cgi-bin/magicBox.cgi?action=getSystemInfo"
-                # deviceType=31
-                # processor=ST7108
-                # serialNumber=ND0219110NNNNN
-                # updateSerial=DHI-NVR4108HS-8P-4KS2
-                if device_type in ["IP Camera", "31"] or device_type is None:
-                    # Some firmwares put the device type in the "updateSerial" field. Weird.
-                    device_type = data.get("updateSerial", None)
-                    if device_type is None:
-                        # If it's still none, then call the device type API
-                        dt = await self.client.get_device_type()
-                        device_type = dt.get("type")
-                data["model"] = device_type
-                self.model = device_type
-                self.machine_name = data.get("table.General.MachineName")
-                self._serial_number = data.get("serialNumber")
+                #If NVR, invoke alternative procedure
+                if(is_nvr):
+                    self.nvr_devices_discovery = await self.client.get_device_discovery()
+                    self._nvr_devices_encodesettings = await self.client.get_encode_settings()
+                    self.ip_with_smallest_final_octet = resolve_ips()
+                    self._current_device_discovery_id = get_index_of_device_in_discovery()
+                    self.get_index_of_device_in_discovery()
+                    self.model = self.get_current_device_model_number()
+                    self.machine_name = self.get_current_device_machine_name()
+                    self._serial_number = self.get_current_device_sn()
+                    machine_name = self.machine_name
+                    data.update(machine_name)
+                else:
+                    device_type = data.get("deviceType", None)
+                    # Lorex NVRs return deviceType=31, but the model is in the updateSerial
+                    # /cgi-bin/magicBox.cgi?action=getSystemInfo"
+                    # deviceType=31
+                    # processor=ST7108
+                    # serialNumber=ND0219110NNNNN
+                    # updateSerial=DHI-NVR4108HS-8P-4KS2
+                    if device_type in ["IP Camera", "31"] or device_type is None:
+                        # Some firmwares put the device type in the "updateSerial" field. Weird.
+                        device_type = data.get("updateSerial", None)
+                        if device_type is None:
+                            # If it's still none, then call the device type API
+                            dt = await self.client.get_device_type()
+                            device_type = dt.get("type")
+                    data["model"] = device_type
+                    self.model = device_type
+                    self.machine_name = data.get("table.General.MachineName")
+                    self._serial_number = data.get("serialNumber")
 
                 try:
                     await self.client.async_get_coaxial_control_io_status()
@@ -525,9 +541,12 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         return m.startswith("VTO") or m.startswith("DH-VTO") or self.is_amcrest_doorbell()
     def is_nvr(self) -> bool:
         return m.startswith("DHI-NVR")
-    def resolve_ips(self):
-        """Loop through all cameras in discovery api to determine IP of initial camera
-        Set first camera in discovery feed as the 'smallest' final IP octet"""
+    def resolve_ips(self) -> string:
+        """Loop through all cameras in discovery api to determine IP of initial camera. The DHCP
+        Server in the NVR assigns IPs in sequence - usually 1st channel/device is smallest, 
+        2nd channel/device is next smallest etc. etc.
+        
+        Go through and map which NVR discovery entry corresponds with which channel"""
         ip_with_smallest_final_octet = self.nvr_devices_discovery[0].IPv4Address.IPAddress.split(".")
         """Set up IP index (dict)(IP_Final_Octet->NVR_Discovery_Index) """
         self._ip_index[ip_with_smallest_final_octet[3]] = 0
@@ -538,7 +557,8 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
             self._ip_index[ip_octets[3]] = i
             """Check the current camera IP to see if it is the smallest"""
             if(ip_octets[3] < ip_with_smallest_final_octet[3]):
-                ip_with_smallest_final_octet = ip_octets
+                ip_with_smallest_final_octet = ip_octets  
+        return ip_with_smallest_final_octet
     def get_index_of_device_in_discovery(self) -> int:
         """
         Dahua confirmed, proceed to extract model number from dodgy discovery process. We can then use the channel ID
@@ -556,9 +576,11 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         return self._ip_index[current_dev_final_octet]
 
     def get_current_device_sn(self) -> str:
-        return self.nvr_devices_discovery[self._current_dev_final_octet].SerialNo
+        return self.nvr_devices_discovery[self._current_device_discovery_id].SerialNo
     def get_current_device_model_number(self) -> str:
-        return self.nvr_devices_discovery[self._current_dev_final_octet].DeviceType
+        return self.nvr_devices_discovery[self._current_device_discovery_id].DeviceType
+    def get_current_device_machine_name(self) -> str:
+        return self.nvr_devices_discovery[self._current_device_discovery_id].MachineName
     def is_connected_to_nvr_switch(self) -> bool:
         """
         Find out whether the device is directly connected to NVR switch (i.e. does device have a video pack assigned?)
