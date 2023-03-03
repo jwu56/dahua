@@ -548,11 +548,11 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
 
 
     def get_current_device_sn(self) -> str:
-        return self.nvr_devices_discovery[self._current_device_discovery_id].SerialNo
+        return self.nvr_devices_discovery.deviceInfo[self._current_device_discovery_id].SerialNo
     def get_current_device_model_number(self) -> str:
-        return self.nvr_devices_discovery[self._current_device_discovery_id].DeviceType
+        return self.nvr_devices_discovery.deviceInfo[self._current_device_discovery_id].DeviceType
     def get_current_device_machine_name(self) -> str:
-        return self.nvr_devices_discovery[self._current_device_discovery_id].MachineName
+        return self.nvr_devices_discovery.deviceInfo[self._current_device_discovery_id].MachineName
     def is_connected_to_nvr_switch(self) -> bool:
         """
         Find out whether the device is directly connected to NVR switch (i.e. does device have a video pack assigned?)
@@ -721,12 +721,12 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         2nd channel/device is next smallest etc. etc.
         
         Go through and map which NVR discovery entry corresponds with which channel"""
-        ip_with_smallest_final_octet = self.nvr_devices_discovery[0].IPv4Address.IPAddress.split(".")
+        ip_with_smallest_final_octet = self.nvr_devices_discovery.deviceInfo[0].IPv4Address.IPAddress.split(".")
         """Set up IP index (dict)(IP_Final_Octet->NVR_Discovery_Index) """
         self._ip_index[ip_with_smallest_final_octet[3]] = 0
         for i in range (1,len(self._nvr_devices_discovery)):
             """Get IP address of current camera and split the octets"""
-            ip_octets = self.nvr_devices_discovery[i].IPv4Address.IPAddress.split(".")
+            ip_octets = self.nvr_devices_discovery.deviceInfo[i].IPv4Address.IPAddress.split(".")
             """Keep adding to IP index"""
             self._ip_index[ip_octets[3]] = i
             """Check the current camera IP to see if it is the smallest"""
