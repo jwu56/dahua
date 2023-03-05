@@ -107,7 +107,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
 
         # The client used to communicate with Dahua devices
         self.client: DahuaClient = DahuaClient(username, password, address, port, rtsp_port, self._session)
-
+        self._ip_index = []
         self.platforms = []
         self.initialized = False
         self.model = ""
